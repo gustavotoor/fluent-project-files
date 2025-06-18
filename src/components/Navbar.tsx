@@ -33,9 +33,9 @@ const Navbar = () => {
           <div className="flex items-center">
             <Link to="/chat" className="flex items-center space-x-2">
               <img 
-                src="/logo.png" 
-                alt="ProjectManager" 
-                className="h-8 w-8"
+                src="/lovable-uploads/db0d6387-03e2-46ea-b54e-c242b10719ad.png" 
+                alt="Power Consultoria" 
+                className="h-10 w-auto"
                 onError={(e) => {
                   e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzNCODJGNiIvPgo8cGF0aCBkPSJNOCAxMkg0VjI0SDhWMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTggMTJIMTRWMjRIMThWMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjggMTJIMjRWMjRIMjhWMTJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K';
                 }}

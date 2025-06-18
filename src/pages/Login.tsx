@@ -40,11 +40,11 @@ const Login = () => {
       <Card className="w-full max-w-md animate-fade-in">
         <CardHeader className="text-center">
           <img 
-            src="/logo.png" 
-            alt="ProjectManager" 
-            className="h-12 w-12 mx-auto mb-4"
+            src="/lovable-uploads/db0d6387-03e2-46ea-b54e-c242b10719ad.png" 
+            alt="Power Consultoria" 
+            className="h-16 w-auto mx-auto mb-4"
             onError={(e) => {
-              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTIiIGZpbGw9IiMzQjgyRjYiLz4KPHA+';
+              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTIiIGZpbGw9IiMzQjgyRjYiLz4K';
             }}
           />
           <CardTitle className="text-2xl font-bold">Bem-vindo</CardTitle>
