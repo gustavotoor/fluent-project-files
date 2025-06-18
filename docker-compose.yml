@@ -1,0 +1,40 @@
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - projectmanager-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - CHAT_SIMULATION=${CHAT_SIMULATION:-true}
+      - UPLOAD_FOLDER=${UPLOAD_FOLDER:-/app/uploads}
+      - ALLOWED_ORIGINS=http://localhost:3000
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - projectmanager-network
+
+volumes:
+  uploads_data:
+
+networks:
+  projectmanager-network:
+    driver: bridge

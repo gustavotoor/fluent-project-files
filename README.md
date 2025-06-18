@@ -1,73 +1,230 @@
-# Welcome to your Lovable project
 
-## Project info
+# ProjectManager 🚀
 
-**URL**: https://lovable.dev/projects/7fd82e64-db42-4494-a286-8d2fa491881f
+Sistema completo de gestão de projetos com upload de arquivos, chat inteligente e autenticação JWT.
 
-## How can I edit this code?
+## ✨ Funcionalidades
 
-There are several ways of editing your application.
+- **Autenticação JWT** - Login/registro seguro com proteção de rotas
+- **Chat Inteligente** - Sistema de chat estilo ChatGPT com histórico
+- **Gestão de Projetos** - Criação e acompanhamento de projetos
+- **Upload de Arquivos** - Upload vinculado a projetos com tipos permitidos
+- **Interface Responsiva** - Design moderno que funciona em mobile, tablet e desktop
+- **Tema Claro/Escuro** - Alternância entre temas com preferência salva
 
-**Use Lovable**
+## 🛠️ Tecnologias
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/7fd82e64-db42-4494-a286-8d2fa491881f) and start prompting.
+### Frontend
+- **React 18** + TypeScript
+- **Vite** para build otimizado
+- **Tailwind CSS** para estilização
+- **shadcn/ui** para componentes
+- **React Router** para navegação
+- **Context API** para gerenciamento de estado
 
-Changes made via Lovable will be committed automatically to this repo.
+### Backend (Estrutura proposta)
+- **FastAPI** + SQLAlchemy
+- **PostgreSQL** (banco existente)
+- **JWT** para autenticação
+- **Alembic** para migrations
+- **Pydantic** para validação
 
-**Use your preferred IDE**
+## 🚀 Modo de Simulação
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+A aplicação possui dois modos de operação:
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### CHAT_SIMULATION=true (Padrão)
+- Respostas simuladas do chat
+- Funciona sem backend
+- Ideal para desenvolvimento e demonstrações
 
-Follow these steps:
+### CHAT_SIMULATION=false
+- Integração com webhook n8n
+- Endpoint: `http://localhost:5678/webhook/envia-mensagem`
+- Payload: `{chat_id, user_id, data_envio, mensagem}`
+- Retorna: `{resposta: "texto da resposta"}`
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 📱 Design Responsivo
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+A aplicação é totalmente responsiva e funciona perfeitamente em:
+- 📱 **Mobile** (320px+)
+- 📱 **Tablet** (768px+)
+- 💻 **Desktop** (1024px+)
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 🎨 Interface
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+- **Cores primárias**: Azul (#3B82F6) com gradientes
+- **Tema claro/escuro** com transições suaves
+- **Animações sutis** para melhor UX
+- **Micro-interações** em botões e cards
+- **Layout sidebar** colapsível no chat
+
+## 🔒 Autenticação
+
+- JWT armazenado em localStorage
+- Context API para gerenciamento de estado de auth
+- ProtectedRoute para rotas privadas
+- Redirects automáticos baseados no status de auth
+
+## 📁 Estrutura de Arquivos Permitidos
+
+- **Documentos**: PDF, DOC, DOCX
+- **Planilhas**: XLS, XLSX
+- **Imagens**: JPG, JPEG
+- **Texto**: TXT
+- **Limite**: 10MB por arquivo
+
+## 🐳 Deploy com Docker
+
+### Variáveis de Ambiente (.env)
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+
+# JWT
+JWT_SECRET=your-super-secret-key
+
+# Chat Mode
+CHAT_SIMULATION=true
+
+# Upload
+UPLOAD_FOLDER=/app/uploads
+```
+
+### Docker Compose
+```bash
+# Build e subir aplicação
+docker-compose up --build -d
+
+# Logs
+docker-compose logs -f
+
+# Parar
+docker-compose down
+```
+
+### Script de Instalação
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+## 📊 Banco de Dados
+
+### Tabelas Principais
+
+#### usuarios
+- id (UUID, PK)
+- nome (VARCHAR)
+- email (VARCHAR, UNIQUE)
+- senha_hash (VARCHAR)
+- created_at (TIMESTAMP)
+
+#### projetos
+- id (UUID, PK)
+- nome (VARCHAR)
+- data_solicitacao (DATE)
+- prazo_entrega (DATE)
+- user_id (UUID, FK)
+
+#### chats
+- id (UUID, PK)
+- user_id (UUID, FK)
+- created_at (TIMESTAMP)
+
+#### mensagens
+- id (UUID, PK)
+- chat_id (UUID, FK)
+- texto (TEXT)
+- remetente (ENUM: user/bot)
+- data_envio (TIMESTAMP)
+
+#### arquivos
+- id (UUID, PK)
+- nome_arquivo (VARCHAR)
+- tipo (VARCHAR)
+- caminho (VARCHAR)
+- projeto_id (UUID, FK)
+- user_id (UUID, FK)
+- data_upload (TIMESTAMP)
+
+## 🔌 API Endpoints (Backend)
+
+### Autenticação
+- `POST /auth/register` - Criar usuário
+- `POST /auth/login` - Login e obter JWT
+
+### Chat
+- `GET /chat/sessoes` - Listar chats do usuário
+- `GET /chat/{chat_id}` - Mensagens da sessão
+- `POST /chat/mensagem` - Enviar mensagem
+
+### Projetos
+- `GET /projetos/distintos` - Projetos únicos
+- `POST /projetos/` - Criar projeto
+
+### Upload
+- `POST /upload/` - Upload de arquivo
+
+## 🔧 Desenvolvimento
+
+### Instalação Local
+```bash
+# Clone o repositório
+git clone <repo-url>
+cd projectmanager
+
+# Instale dependências
+npm install
+
+# Inicie o desenvolvimento
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Comandos Úteis
+```bash
+# Build para produção
+npm run build
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+# Preview do build
+npm run preview
 
-**Use GitHub Codespaces**
+# Lint
+npm run lint
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🌟 Funcionalidades Destacadas
 
-## What technologies are used for this project?
+1. **Chat com Histórico** - Sidebar com conversas anteriores
+2. **Upload Drag & Drop** - Interface intuitiva para upload
+3. **Status de Projetos** - Badges coloridos indicando urgência
+4. **Responsividade Total** - Layout que se adapta a qualquer tela
+5. **Tema Persistente** - Preferência de tema salva no localStorage
+6. **Feedback Visual** - Toasts para todas as ações importantes
 
-This project is built with:
+## 📝 TODO / Melhorias Futuras
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- [ ] Implementação do backend FastAPI
+- [ ] Migrations do banco de dados
+- [ ] Autenticação social (Google, GitHub)
+- [ ] Notificações push
+- [ ] Filtros avançados de projetos
+- [ ] Exportação de dados
+- [ ] API de relatórios
+- [ ] Integração com calendário
 
-## How can I deploy this project?
+## 🤝 Contribuição
 
-Simply open [Lovable](https://lovable.dev/projects/7fd82e64-db42-4494-a286-8d2fa491881f) and click on Share -> Publish.
+1. Fork o projeto
+2. Crie sua feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
 
-## Can I connect a custom domain to my Lovable project?
+## 📄 Licença
 
-Yes, you can!
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+---
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+**ProjectManager** - Transformando a gestão de projetos com tecnologia moderna! 🚀
