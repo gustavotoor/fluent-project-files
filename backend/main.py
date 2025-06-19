@@ -8,11 +8,15 @@ from typing import Optional, List
 import os
 import jwt
 import hashlib
-import json
 import shutil
 from datetime import datetime, timedelta
-from database import db, connect_db, disconnect_db, create_tables
+from database import db, connect_db, disconnect_db
 from config import settings
+import logging
+
+# Configure logging
+logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL))
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="ProjectManager API", version="1.0.0")
 
@@ -34,12 +38,15 @@ os.makedirs(settings.UPLOAD_FOLDER, exist_ok=True)
 # Database startup/shutdown events
 @app.on_event("startup")
 async def startup():
+    logger.info("Starting up application...")
     await connect_db()
-    await create_tables()
+    logger.info("Application startup complete")
 
 @app.on_event("shutdown")
 async def shutdown():
+    logger.info("Shutting down application...")
     await disconnect_db()
+    logger.info("Application shutdown complete")
 
 # Models
 class User(BaseModel):
@@ -75,13 +82,13 @@ def hash_password(password: str) -> str:
 def generate_token(user_id: str) -> str:
     payload = {
         "user_id": user_id,
-        "exp": datetime.utcnow() + timedelta(days=7)
+        "exp": datetime.utcnow() + timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS)
     }
-    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     try:
-        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
         return payload["user_id"]
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -96,13 +103,17 @@ async def health_check():
 # Auth endpoints
 @app.post("/auth/register", response_model=LoginResponse)
 async def register(user: User):
+    logger.info(f"Registration attempt for email: {user.email}")
+    
     existing_user = await db.get_user_by_email(user.email)
     if existing_user:
+        logger.warning(f"Registration failed - email already exists: {user.email}")
         raise HTTPException(status_code=400, detail="Email already registered")
     
     new_user = await db.create_user(user.email, hash_password(user.password))
     token = generate_token(new_user["id"])
     
+    logger.info(f"User registered successfully: {new_user['id']}")
     return LoginResponse(
         token=token,
         user=UserResponse(id=new_user["id"], email=new_user["email"])
@@ -110,11 +121,16 @@ async def register(user: User):
 
 @app.post("/auth/login", response_model=LoginResponse)
 async def login(user: User):
+    logger.info(f"Login attempt for email: {user.email}")
+    
     db_user = await db.get_user_by_email(user.email)
     if not db_user or db_user["password"] != hash_password(user.password):
+        logger.warning(f"Login failed for email: {user.email}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     token = generate_token(db_user["id"])
+    logger.info(f"User logged in successfully: {db_user['id']}")
+    
     return LoginResponse(
         token=token,
         user=UserResponse(id=db_user["id"], email=db_user["email"])
@@ -156,14 +172,17 @@ async def send_message(message_data: dict, user_id: str = Depends(verify_token))
         message_data.get("project_id")
     )
     
-    # Simulate AI response
-    response = await db.create_message(
-        f"Entendi sua mensagem: '{message_data['content']}'. Como posso ajudar com seu projeto?",
-        "assistant",
-        message_data.get("project_id")
-    )
-    
-    return {"message": message, "response": response}
+    # Simulate AI response if in simulation mode
+    if settings.CHAT_SIMULATION:
+        response = await db.create_message(
+            f"Entendi sua mensagem: '{message_data['content']}'. Como posso ajudar com seu projeto?",
+            "assistant",
+            message_data.get("project_id")
+        )
+        return {"message": message, "response": response}
+    else:
+        # TODO: Integrate with N8N webhook
+        return {"message": message}
 
 # Upload endpoints
 @app.post("/upload")
@@ -198,4 +217,4 @@ async def list_uploads(user_id: str = Depends(verify_token)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=settings.API_HOST, port=settings.API_PORT)

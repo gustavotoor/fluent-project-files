@@ -1,159 +1,206 @@
 
-from databases import Database
-from sqlalchemy import create_engine, MetaData, Table, Column, String, Text, DateTime, Integer
-from sqlalchemy.sql import func
-from typing import Dict, List, Optional
+import asyncio
+import asyncpg
 import os
+import uuid
 from datetime import datetime
+from typing import Dict, List, Optional
 from config import settings
+import logging
 
-# Database URL from environment
-DATABASE_URL = settings.DATABASE_URL
-
-# Database instance
-database = Database(DATABASE_URL)
-
-# SQLAlchemy metadata
-metadata = MetaData()
-
-# Define tables
-users_table = Table(
-    "users",
-    metadata,
-    Column("id", String, primary_key=True),
-    Column("email", String, unique=True, index=True),
-    Column("password", String),
-    Column("created_at", DateTime, server_default=func.now())
-)
-
-projects_table = Table(
-    "projects",
-    metadata,
-    Column("id", String, primary_key=True),
-    Column("name", String),
-    Column("description", Text),
-    Column("user_id", String),
-    Column("created_at", DateTime, server_default=func.now())
-)
-
-messages_table = Table(
-    "messages",
-    metadata,
-    Column("id", String, primary_key=True),
-    Column("content", Text),
-    Column("sender", String),
-    Column("project_id", String),
-    Column("timestamp", DateTime, server_default=func.now())
-)
-
-files_table = Table(
-    "files",
-    metadata,
-    Column("id", String, primary_key=True),
-    Column("filename", String),
-    Column("filepath", String),
-    Column("size", Integer),
-    Column("user_id", String),
-    Column("created_at", DateTime, server_default=func.now())
-)
-
-# Create engine for table creation
-engine = create_engine(DATABASE_URL)
-
-async def create_tables():
-    """Create tables if they don't exist"""
-    metadata.create_all(engine)
-
-async def connect_db():
-    """Connect to database"""
-    await database.connect()
-
-async def disconnect_db():
-    """Disconnect from database"""
-    await database.disconnect()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class PostgresDB:
-    """PostgreSQL database operations"""
+    """PostgreSQL database operations using asyncpg"""
+    
+    def __init__(self):
+        self.pool = None
+    
+    async def connect(self):
+        """Create connection pool"""
+        try:
+            self.pool = await asyncpg.create_pool(
+                settings.DATABASE_URL,
+                min_size=1,
+                max_size=10,
+                command_timeout=60
+            )
+            logger.info("Database pool created successfully")
+            await self.create_tables()
+        except Exception as e:
+            logger.error(f"Failed to create database pool: {e}")
+            raise
+    
+    async def disconnect(self):
+        """Close connection pool"""
+        if self.pool:
+            await self.pool.close()
+            logger.info("Database pool closed")
+    
+    async def create_tables(self):
+        """Create tables if they don't exist"""
+        create_users_table = """
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        
+        create_projects_table = """
+        CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            user_id TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        """
+        
+        create_messages_table = """
+        CREATE TABLE IF NOT EXISTS messages (
+            id TEXT PRIMARY KEY,
+            content TEXT NOT NULL,
+            sender TEXT NOT NULL,
+            project_id TEXT,
+            timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        """
+        
+        create_files_table = """
+        CREATE TABLE IF NOT EXISTS files (
+            id TEXT PRIMARY KEY,
+            filename TEXT NOT NULL,
+            filepath TEXT NOT NULL,
+            size INTEGER NOT NULL,
+            user_id TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        """
+        
+        async with self.pool.acquire() as conn:
+            await conn.execute(create_users_table)
+            await conn.execute(create_projects_table)
+            await conn.execute(create_messages_table)
+            await conn.execute(create_files_table)
+            logger.info("Tables created successfully")
     
     async def create_user(self, email: str, password_hash: str) -> dict:
-        user_id = f"user_{datetime.utcnow().timestamp()}"
-        query = users_table.insert().values(
-            id=user_id,
-            email=email,
-            password=password_hash
-        )
-        await database.execute(query)
+        """Create a new user"""
+        user_id = f"user_{uuid.uuid4().hex[:8]}"
+        created_at = datetime.utcnow()
         
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO users (id, email, password, created_at) VALUES ($1, $2, $3, $4)",
+                user_id, email, password_hash, created_at
+            )
+        
+        logger.info(f"User created: {user_id} - {email}")
         return {
             "id": user_id,
             "email": email,
             "password": password_hash,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": created_at.isoformat()
         }
     
     async def get_user_by_email(self, email: str) -> Optional[dict]:
-        query = users_table.select().where(users_table.c.email == email)
-        result = await database.fetch_one(query)
-        if result:
-            return dict(result)
+        """Get user by email"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id, email, password, created_at FROM users WHERE email = $1",
+                email
+            )
+            if row:
+                return dict(row)
         return None
     
     async def get_user_by_id(self, user_id: str) -> Optional[dict]:
-        query = users_table.select().where(users_table.c.id == user_id)
-        result = await database.fetch_one(query)
-        if result:
-            return dict(result)
+        """Get user by ID"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id, email, password, created_at FROM users WHERE id = $1",
+                user_id
+            )
+            if row:
+                return dict(row)
         return None
     
     async def create_project(self, name: str, description: str, user_id: str) -> dict:
-        project_id = f"project_{datetime.utcnow().timestamp()}"
-        query = projects_table.insert().values(
-            id=project_id,
-            name=name,
-            description=description,
-            user_id=user_id
-        )
-        await database.execute(query)
+        """Create a new project"""
+        project_id = f"project_{uuid.uuid4().hex[:8]}"
+        created_at = datetime.utcnow()
         
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO projects (id, name, description, user_id, created_at) VALUES ($1, $2, $3, $4, $5)",
+                project_id, name, description, user_id, created_at
+            )
+        
+        logger.info(f"Project created: {project_id} - {name}")
         return {
             "id": project_id,
             "name": name,
             "description": description,
             "user_id": user_id,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": created_at.isoformat()
         }
     
     async def get_projects_by_user(self, user_id: str) -> List[dict]:
-        query = projects_table.select().where(projects_table.c.user_id == user_id)
-        results = await database.fetch_all(query)
-        return [dict(result) for result in results]
+        """Get all projects for a user"""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id, name, description, user_id, created_at FROM projects WHERE user_id = $1 ORDER BY created_at DESC",
+                user_id
+            )
+            return [dict(row) for row in rows]
     
     async def create_message(self, content: str, sender: str, project_id: Optional[str] = None) -> dict:
-        message_id = f"msg_{datetime.utcnow().timestamp()}"
-        query = messages_table.insert().values(
-            id=message_id,
-            content=content,
-            sender=sender,
-            project_id=project_id
-        )
-        await database.execute(query)
+        """Create a new message"""
+        message_id = f"msg_{uuid.uuid4().hex[:8]}"
+        timestamp = datetime.utcnow()
+        
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO messages (id, content, sender, project_id, timestamp) VALUES ($1, $2, $3, $4, $5)",
+                message_id, content, sender, project_id, timestamp
+            )
         
         return {
             "id": message_id,
             "content": content,
             "sender": sender,
             "project_id": project_id,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": timestamp.isoformat()
         }
     
     async def get_messages(self, project_id: Optional[str] = None) -> List[dict]:
-        if project_id:
-            query = messages_table.select().where(messages_table.c.project_id == project_id)
-        else:
-            query = messages_table.select()
-        
-        results = await database.fetch_all(query)
-        return [dict(result) for result in results]
+        """Get messages, optionally filtered by project"""
+        async with self.pool.acquire() as conn:
+            if project_id:
+                rows = await conn.fetch(
+                    "SELECT id, content, sender, project_id, timestamp FROM messages WHERE project_id = $1 ORDER BY timestamp ASC",
+                    project_id
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT id, content, sender, project_id, timestamp FROM messages ORDER BY timestamp ASC"
+                )
+            return [dict(row) for row in rows]
 
 # Global database instance
 db = PostgresDB()
+
+async def connect_db():
+    """Connect to database"""
+    await db.connect()
+
+async def disconnect_db():
+    """Disconnect from database"""
+    await db.disconnect()

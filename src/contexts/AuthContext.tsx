@@ -3,15 +3,14 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 interface User {
   id: string;
-  nome: string;
   email: string;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, senha: string) => Promise<void>;
-  register: (nome: string, email: string, senha: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -35,6 +34,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // API base URL - adjust this based on your deployment
+  const API_BASE_URL = process.env.NODE_ENV === 'production' 
+    ? 'http://localhost:8000' 
+    : 'http://localhost:8000';
+
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
@@ -46,20 +50,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, senha: string) => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      const response = await fetch('/api/auth/login', {
+      console.log('Attempting login with backend at:', `${API_BASE_URL}/auth/login`);
+      
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, senha }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {
-        throw new Error('Login failed');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
       }
 
       const data = await response.json();
@@ -69,45 +75,46 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(newUser);
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(newUser));
-    } catch (error) {
-      // For demo purposes, simulate successful login
-      const demoUser = {
-        id: '1',
-        nome: 'Usuário Demo',
-        email: email,
-      };
-      const demoToken = 'demo-token-' + Date.now();
       
-      setToken(demoToken);
-      setUser(demoUser);
-      localStorage.setItem('token', demoToken);
-      localStorage.setItem('user', JSON.stringify(demoUser));
+      console.log('Login successful:', newUser);
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (nome: string, email: string, senha: string) => {
+  const register = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      const response = await fetch('/api/auth/register', {
+      console.log('Attempting registration with backend at:', `${API_BASE_URL}/auth/register`);
+      
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ nome, email, senha }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {
-        throw new Error('Registration failed');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Registration failed');
       }
 
-      // Auto login after registration
-      await login(email, senha);
+      const data = await response.json();
+      const { token: newToken, user: newUser } = data;
+
+      setToken(newToken);
+      setUser(newUser);
+      localStorage.setItem('token', newToken);
+      localStorage.setItem('user', JSON.stringify(newUser));
+      
+      console.log('Registration successful:', newUser);
     } catch (error) {
-      // For demo purposes, simulate successful registration
-      await login(email, senha);
+      console.error('Registration error:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -118,6 +125,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    console.log('User logged out');
   };
 
   return (

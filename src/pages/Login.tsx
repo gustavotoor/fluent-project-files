@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [password, setPassword] = useState('');
   const { login, user, isLoading } = useAuth();
   const { toast } = useToast();
 
@@ -21,7 +21,7 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login(email, senha);
+      await login(email, password);
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo ao ProjectManager",
@@ -29,7 +29,7 @@ const Login = () => {
     } catch (error) {
       toast({
         title: "Erro no login",
-        description: "Verifique suas credenciais e tente novamente",
+        description: error instanceof Error ? error.message : "Verifique suas credenciais e tente novamente",
         variant: "destructive",
       });
     }
@@ -66,13 +66,13 @@ const Login = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="senha">Senha</Label>
+              <Label htmlFor="password">Senha</Label>
               <Input
-                id="senha"
+                id="password"
                 type="password"
                 placeholder="••••••••"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>

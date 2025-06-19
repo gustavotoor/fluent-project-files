@@ -1,6 +1,10 @@
 
 import os
 from typing import List
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente
+load_dotenv()
 
 class Settings:
     # Database Configuration
