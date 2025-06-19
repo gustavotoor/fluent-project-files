@@ -3,6 +3,9 @@ import os
 from typing import List
 
 class Settings:
+    # Database Configuration
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://username:password@localhost:5432/projectmanager")
+    
     # API Configuration
     API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
     API_PORT: int = int(os.getenv("API_PORT", "8000"))
